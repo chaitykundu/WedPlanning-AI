@@ -1,26 +1,68 @@
 import streamlit as st
 from services.pdf_reader import extract_text_from_pdf
 from services.ai_timeline_generator import WeddingTimelineAI
+from services.speech_to_text import transcribe_audio
 import tempfile
 import os
+import time
 
-st.set_page_config(page_title="💍 AI Wedding Timeline Generator", layout="centered")
+# ----------------------------
+# Streamlit Chat-Like Setup
+# ----------------------------
+st.set_page_config(page_title="💍 AI Wedding Planner", layout="wide")
 
-st.title("💍 AI Wedding Timeline Generator")
-st.caption("Upload your filled Wedding Intake Questionnaire and a sample reference timeline to generate a modeled day-of timeline.")
+st.title("💍 AI Wedding Planner Assistant")
+st.caption("Upload your intake questionnaire, reference timeline, and optional meeting recording — the AI will generate a structured 'Day-of Wedding Timeline' just like a professional planner.")
 
-# --- File upload widgets ---
-intake_file = st.file_uploader("📄 Upload Filled Wedding Intake Questionnaire", type=["pdf"])
-reference_file = st.file_uploader("📘 Upload Reference Day-of Timeline", type=["pdf"])
+# Initialize session state
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-generate_button = st.button("✨ Generate Timeline")
+# Display message history
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-if generate_button:
-    if not intake_file or not reference_file:
-        st.error("Please upload both the intake and reference PDF files.")
+# ----------------------------
+# File Uploads
+# ----------------------------
+with st.sidebar:
+    st.header("📁 Upload Your Files")
+    intake_file = st.file_uploader("📄 Intake Questionnaire", type=["pdf"])
+    reference_file = st.file_uploader("📘 Reference Timeline", type=["pdf"])
+    audio_file = st.file_uploader("🎙️ Meeting Recording (optional)", type=["mp3", "wav", "m4a"])
+
+    if intake_file and reference_file:
+        st.success("✅ Files ready to process!")
     else:
-        with st.spinner("Extracting text from PDFs..."):
-            # Save uploaded files temporarily
+        st.info("Please upload at least intake & reference PDFs.")
+
+# ----------------------------
+# Chat Input
+# ----------------------------
+user_prompt = st.chat_input("Ask the AI to generate or adjust your wedding timeline...")
+
+if user_prompt:
+    # Display user message
+    st.chat_message("user").markdown(user_prompt)
+    st.session_state.messages.append({"role": "user", "content": user_prompt})
+
+    # Check required uploads
+    if not intake_file or not reference_file:
+        ai_reply = "⚠️ Please upload both the intake and reference PDF files first."
+        with st.chat_message("assistant"):
+            st.markdown(ai_reply)
+        st.session_state.messages.append({"role": "assistant", "content": ai_reply})
+
+    else:
+        # ---------------------------------
+        # File handling & AI generation
+        # ---------------------------------
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            message_placeholder.markdown("🧠 Reading your files...")
+
+            # Save temporary copies
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_intake:
                 temp_intake.write(intake_file.read())
                 intake_path = temp_intake.name
@@ -29,36 +71,32 @@ if generate_button:
                 temp_ref.write(reference_file.read())
                 reference_path = temp_ref.name
 
-            # Extract text from PDFs
+            # Extract text
             intake_text = extract_text_from_pdf(intake_path)
             reference_text = extract_text_from_pdf(reference_path)
 
-        st.success("✅ Files processed successfully!")
+            # Transcribe meeting audio if provided
+            meeting_text = ""
+            if audio_file:
+                message_placeholder.markdown("🎧 Transcribing meeting recording...")
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
+                    temp_audio.write(audio_file.read())
+                    audio_path = temp_audio.name
+                meeting_text = transcribe_audio(audio_path)
 
-        # Display extracted preview
-        with st.expander("📝 Preview Intake Text"):
-            st.text(intake_text[:1500])
-
-        with st.expander("📋 Preview Reference Timeline"):
-            st.text(reference_text[:1500])
-
-        # Generate AI-based timeline
-        with st.spinner("🧠 Generating your customized Day-of Timeline..."):
+            # Generate AI timeline
+            message_placeholder.markdown("✨ Generating your wedding day timeline...")
             ai = WeddingTimelineAI()
-            timeline_output = ai.generate_timeline(intake_text, reference_text)
+            combined_input = intake_text + "\n\n" + meeting_text + "\n\n" + user_prompt
+            timeline_output = ai.generate_timeline(combined_input, reference_text)
 
-        st.subheader("🗓️ AI-Generated Day-of Wedding Timeline")
-        st.markdown(timeline_output)
+            # Simulate streaming / typing
+            final_response = ""
+            for chunk in timeline_output.split():
+                final_response += chunk + " "
+                message_placeholder.markdown(final_response + "▌")
+                time.sleep(0.02)
+            message_placeholder.markdown(final_response)
 
-        # Offer download option
-        output_path = os.path.join("uploads", "AI_Generated_Timeline.txt")
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(timeline_output)
-
-        with open(output_path, "rb") as f:
-            st.download_button(
-                label="⬇️ Download Timeline as Text File",
-                data=f,
-                file_name="AI_Wedding_Timeline.txt",
-                mime="text/plain",
-            )
+            # Store in chat history
+            st.session_state.messages.append({"role": "assistant", "content": final_response})
