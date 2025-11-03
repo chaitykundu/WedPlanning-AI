@@ -1,0 +1,8 @@
+streamlit
+openai-whisper
+langchain
+google-generativeai
+python-dotenv
+pydub
+PyMuPDF
+python-docx
