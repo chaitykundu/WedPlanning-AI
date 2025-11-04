@@ -52,3 +52,20 @@ class WeddingPlannerChatbot:
             """
         response = self.chat_session.send_message(prompt)
         return response.text.strip()
+    
+    def analyze_file(self, content: str, filename: str) -> str:
+        """
+        Analyze uploaded wedding-related file and return insights.
+        """
+        prompt = f"""
+        You are a professional wedding planner.
+        A couple uploaded a file named '{filename}' related to their wedding.
+        Read the content and summarize key info or provide planning advice.
+
+        ---
+        {content[:5000]}
+        ---
+        """
+
+        response = self.model.generate_content(prompt)
+        return response.text.strip()
