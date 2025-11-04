@@ -1,29 +1,18 @@
-import argparse
-from services.pdf_reader import extract_text
-from services.ai_timeline_generator import WeddingTimelineAI
-import os
+from services.chatbot import WeddingPlannerChatbot
 
 def main():
-    parser = argparse.ArgumentParser(description="AI Wedding Timeline Generator ")
-    parser.add_argument("--intake", required=True, help="Path to filled Wedding Intake Questionnaire PDF")
-    parser.add_argument("--reference", required=True, help="Path to reference Day-of Timeline PDF")
-    args = parser.parse_args()
+    print("💍 Welcome to the Wedding Planner AI Chatbot!")
+    bot = WeddingPlannerChatbot()
 
-    print("📥 Reading uploaded files...")
+    while True:
+        user_input = input("\nYou: ")
+        if user_input.lower() in ["exit", "quit", "bye"]:
+            print("👋 Wishing you a wonderful wedding journey! Goodbye!")
+            break
 
-    # --- Extract text from both PDFs ---
-    intake_text = extract_text(args.intake)
-    reference_text = extract_text(args.reference)
+        reply = bot.chat(user_input)
+        print(f"AI : {reply}")
 
-    # --- Combine context (no audio for now) ---
-    combined_context = intake_text  # meeting_text removed
-
-    print("\n🧠 Generating modeled Day-of Timeline...")
-    ai = WeddingTimelineAI()
-    timeline_output = ai.generate_timeline(combined_context, reference_text)
-
-    print("\n✅ --- AI-GENERATED DAY-OF TIMELINE --- ✅\n")
-    print(timeline_output)
 
 if __name__ == "__main__":
     main()
