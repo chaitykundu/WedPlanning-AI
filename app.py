@@ -24,43 +24,43 @@ def home():
     return {"message": "Welcome to the Wedding Planner AI Service! "}
 
 @app.post("/chat")
-async def chat(user_message: str = Form(...)):
-    """
-    Handles chat messages from the user.
-    """
-    response = bot.chat(user_message)
-    return {"reply": response}
-
-@app.post("/upload-file")
-async def upload_file(
-    files: list[UploadFile] = File(...),
-    prompt: str = Form(...),
+async def chat(
+    user_message: str = Form(None),
+    file: UploadFile = File(None)
 ):
     """
-    Handles multiple file uploads and a text prompt.
+    Handles both text messages and file uploads within the chat.
+    - If user sends text → normal chat reply.
+    - If user uploads files → analyze all files and return instantly.
+    - If both → combine file insights + user question.
     """
-    file_analysis = await handle_file_upload(files)
-
-    chatbot_response = bot.chat(prompt)
-    return {"files": file_analysis, "chatbot_response": chatbot_response}
-
-@app.post("/generate-timeline")
-async def generate_timeline(
-    prompt: str = Form(...),
-    files: list[UploadFile] = File(None),
-):
-    """
-    Generates a wedding day timeline based on uploaded files and/or a text prompt.
-    """
-    uploaded_file_paths = []
-    if files:
+    if file:
+        # Save uploaded file
         os.makedirs("uploads", exist_ok=True)
-        for f in files:
-            file_path = os.path.join("uploads", f.filename)
-            with open(file_path, "wb") as out:
-                content = await f.read()
-                out.write(content)
-            uploaded_file_paths.append(file_path)
+        file_path = os.path.join("uploads", file.filename)
+        content = await file.read()
+        text_content = content.decode("utf-8", errors="ignore")
 
-    result = generator.generate_timeline(prompt_text=prompt, uploaded_files=uploaded_file_paths)
-    return {"timeline": result}
+        # Analyze the file
+        analysis = bot.analyze_file(text_content, file.filename)
+
+        # Optionally, also respond to message if both exist
+        if user_message:
+            chat_reply = bot.chat(user_message)
+            return {
+                "reply": chat_reply,
+                "file_analysis": analysis,
+                "filename": file.filename
+            }
+
+        return {
+            "reply": analysis,
+            "filename": file.filename
+        }
+
+    elif user_message:
+        response = bot.chat(user_message)
+        return {"reply": response}
+
+    else:
+        return {"error": "Please provide a message or upload a file."}

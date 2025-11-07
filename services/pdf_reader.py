@@ -8,11 +8,19 @@ def extract_text_from_pdf(file_path: str) -> str:
     """
     Extracts text from any PDF file using PyMuPDF.
     """
-    text = ""
-    with fitz.open(file_path) as pdf:
-        for page in pdf:
-            text += page.get_text("text")
-    return text.strip()
+    # Check if the file is empty
+    if os.path.getsize(file_path) == 0:
+        raise ValueError(f"The file '{file_path}' is empty.")
+
+    try:
+        text = ""
+        with fitz.open(file_path) as pdf:
+            for page in pdf:
+                text += page.get_text("text")
+        return text.strip()
+
+    except Exception as e:
+        raise ValueError(f"Error processing PDF file '{file_path}': {str(e)}")
 
 
 def extract_text_from_docx(file_path: str) -> str:

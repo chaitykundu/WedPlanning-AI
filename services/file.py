@@ -16,6 +16,11 @@ async def handle_file_upload(files: list[UploadFile]):
             contents = await file.read()
             f.write(contents)
 
+        # Check if the file is empty before proceeding
+        if os.path.getsize(file_path) == 0:
+            file_analysis.append({"filename": file.filename, "error": "File is empty."})
+            continue  # Skip this file
+
         # Extract text from the file based on its type
         try:
             extracted_text = extract_text(file_path)
@@ -24,7 +29,7 @@ async def handle_file_upload(files: list[UploadFile]):
                 "extracted_text": extracted_text[:1000]  # Preview first 1000 characters
             }
         except ValueError as e:
-            analysis = {"error": str(e)}
+            analysis = {"filename": file.filename, "error": str(e)}
 
         file_analysis.append(analysis)
 
