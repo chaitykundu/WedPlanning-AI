@@ -50,7 +50,7 @@ async def chat(
             return {
                 "reply": chat_reply,
                 "file_analysis": analysis,
-                "filename": file.filename
+                "filename": file.filename,
             }
 
         return {
